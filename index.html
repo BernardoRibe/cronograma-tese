@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cronograma de Atividades</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #FAFAFA;
+    --text: #1A1A1A;
+    --text-muted: #6B7280;
+    --text-light: #9CA3AF;
+    --grid-line: #E5E7EB;
+    --grid-month: #D1D5DB;
+    --phase1: #9CA3AF;
+    --phase2: #3B82F6;
+    --phase3: #10B981;
+    --phase4: #EF4444;
+    --phase5: #F59E0B;
+    --phase6: #1E3A5F;
+    --thesis: #8B5CF6;
+    --hover-bg: #F3F4F6;
+    --modal-bg: #FFFFFF;
+    --check-green: #10B981;
+    --label-col: 250px;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 48px 40px;
+    min-height: 100vh;
+  }
+
+  .container { max-width: 1100px; margin: 0 auto; }
+
+  .header { margin-bottom: 48px; text-align: center; }
+  .header h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 6px; }
+  .header p { font-size: 14px; color: var(--text-muted); font-weight: 400; }
+
+  .chart { position: relative; width: 100%; }
+
+  /* Month headers — proportional to actual days: Feb=28 Mar=31 Apr=30 May=31 Jun=30 Jul=31 */
+  .months-row {
+    display: grid;
+    grid-template-columns: var(--label-col) 28fr 31fr 30fr 31fr 30fr 31fr;
+    margin-bottom: 0;
+  }
+  .month-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px; font-weight: 500; color: var(--text-muted);
+    text-align: center; padding: 8px 0;
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  .month-label:first-child { text-align: left; }
+
+  /* Sub-month headers — proportional: 15,13, 15,16, 15,15, 15,16, 15,15, 15,16 */
+  .sub-months-row {
+    display: grid;
+    grid-template-columns: var(--label-col) 15fr 13fr 15fr 16fr 15fr 15fr 15fr 16fr 15fr 15fr 15fr 16fr;
+    margin-bottom: 4px;
+  }
+  .sub-month-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px; font-weight: 400; color: var(--text-light);
+    text-align: center; padding: 2px 0 6px;
+  }
+  .sub-month-label:first-child { text-align: left; }
+
+  /* Grid area */
+  .grid-area { position: relative; padding-bottom: 8px; }
+
+  .grid-lines {
+    position: absolute; top: 0; left: var(--label-col); right: 0; bottom: 0;
+    display: grid;
+    grid-template-columns: 15fr 13fr 15fr 16fr 15fr 15fr 15fr 16fr 15fr 15fr 15fr 16fr;
+    pointer-events: none; z-index: 0;
+  }
+  .grid-line { border-left: 1px solid var(--grid-line); }
+  .grid-line:last-child { border-right: 1px solid var(--grid-line); }
+  .grid-line.month-start { border-left: 1px solid var(--grid-month); }
+
+  /* Today marker — positioned by JS */
+  .today-marker {
+    position: absolute; top: 0; bottom: 0;
+    width: 0; border-left: 2px dashed #EF4444;
+    z-index: 2;
+  }
+  .today-label {
+    position: absolute; bottom: -38px; left: 50%; transform: translateX(-50%);
+    font-family: 'DM Mono', monospace; font-size: 9px; font-weight: 500;
+    color: #EF4444; background: #FEE2E2;
+    padding: 3px 7px; border-radius: 3px;
+    white-space: nowrap; text-align: center; line-height: 1.5;
+  }
+
+  /* Phase rows */
+  .phase-row {
+    display: grid;
+    grid-template-columns: var(--label-col) 1fr;
+    align-items: center; height: 56px;
+    position: relative; z-index: 1;
+    cursor: pointer; border-radius: 8px;
+    transition: background 0.15s ease;
+  }
+  .phase-row:not(.thesis-row):hover { background: var(--hover-bg); }
+  .phase-row:not(:last-child) { border-bottom: 1px solid #F3F4F6; }
+
+  .phase-label {
+    font-size: 13px; font-weight: 500;
+    padding: 0 12px 0 8px;
+    display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 10px;
+  }
+  .phase-number {
+    font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500;
+    color: white; width: 22px; height: 22px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .phase-name { line-height: 1.2; white-space: nowrap; }
+  .phase-dates {
+    font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text-light);
+    white-space: nowrap; flex-shrink: 0;
+    min-width: 95px; text-align: right;
+  }
+
+  .phase-row:not(.thesis-row) .phase-dates::after {
+    content: ' →'; font-size: 12px; color: var(--text-light);
+    opacity: 0; transition: opacity 0.15s ease;
+  }
+  .phase-row:not(.thesis-row):hover .phase-dates::after { opacity: 1; }
+
+  .bar-area { position: relative; height: 100%; display: flex; align-items: center; }
+
+  .bar {
+    position: absolute; height: 32px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.3s ease; cursor: pointer;
+    opacity: 0; animation: barReveal 0.6s ease forwards;
+  }
+  .phase-row:not(.thesis-row):hover .bar { filter: brightness(1.08); transform: scaleY(1.06); }
+
+  .bar-duration {
+    font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500;
+    color: white; white-space: nowrap; text-shadow: 0 1px 2px rgba(0,0,0,0.15);
+  }
+
+  .bar.thesis-bar {
+    height: 28px; background: none !important;
+    border: 2px dashed var(--thesis); border-radius: 6px; cursor: default;
+  }
+  .bar.thesis-bar .bar-duration { color: var(--thesis); text-shadow: none; font-size: 10px; }
+
+  .separator { height: 20px; position: relative; z-index: 1; }
+
+  @keyframes barReveal {
+    from { opacity: 0; transform: scaleX(0.3); transform-origin: left; }
+    to { opacity: 1; transform: scaleX(1); transform-origin: left; }
+  }
+  .phase-row:nth-child(1) .bar { animation-delay: 0.1s; }
+  .phase-row:nth-child(2) .bar { animation-delay: 0.2s; }
+  .phase-row:nth-child(3) .bar { animation-delay: 0.3s; }
+  .phase-row:nth-child(4) .bar { animation-delay: 0.4s; }
+  .phase-row:nth-child(5) .bar { animation-delay: 0.5s; }
+  .phase-row:nth-child(6) .bar { animation-delay: 0.6s; }
+  .phase-row:nth-child(8) .bar { animation-delay: 0.7s; }
+
+  .click-hint {
+    text-align: center; font-size: 12px; color: var(--text-light);
+    margin-top: 52px; font-style: italic;
+  }
+
+  /* ==================== MODAL ==================== */
+  .modal-overlay {
+    display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.4); backdrop-filter: blur(4px);
+    z-index: 100; justify-content: center; align-items: center; padding: 24px;
+    animation: fadeIn 0.2s ease;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: var(--modal-bg); border-radius: 16px;
+    width: 100%; max-width: 680px; max-height: 85vh; overflow-y: auto;
+    box-shadow: 0 24px 48px rgba(0,0,0,0.15); animation: modalSlide 0.25s ease;
+  }
+  .modal-header {
+    position: sticky; top: 0; background: var(--modal-bg);
+    padding: 28px 32px 16px; border-bottom: 1px solid var(--grid-line);
+    z-index: 2; display: flex; align-items: center; gap: 14px;
+  }
+  .modal-phase-badge {
+    font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 600;
+    color: white; width: 30px; height: 30px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .modal-title-group { flex: 1; }
+  .modal-title { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
+  .modal-dates { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .modal-close {
+    width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--grid-line);
+    background: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 16px; color: var(--text-muted); transition: all 0.15s; flex-shrink: 0;
+  }
+  .modal-close:hover { background: var(--hover-bg); color: var(--text); }
+  .modal-body { padding: 24px 32px 32px; }
+  .modal-section { margin-bottom: 28px; }
+  .modal-section:last-child { margin-bottom: 0; }
+  .modal-section-title {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 1.2px; color: var(--text-muted); margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .modal-section-title .icon { font-size: 14px; }
+  .task-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .task-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 8px 10px; border-radius: 8px; transition: background 0.12s;
+  }
+  .task-item:hover { background: var(--hover-bg); }
+  .task-checkbox {
+    appearance: none; -webkit-appearance: none;
+    width: 18px; height: 18px; border: 2px solid var(--grid-line); border-radius: 5px;
+    cursor: pointer; flex-shrink: 0; margin-top: 1px;
+    transition: all 0.15s ease; position: relative;
+  }
+  .task-checkbox:checked { background: var(--check-green); border-color: var(--check-green); }
+  .task-checkbox:checked::after {
+    content: '✓'; position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%); color: white; font-size: 11px; font-weight: 700;
+  }
+  .task-checkbox:checked + .task-text { text-decoration: line-through; color: var(--text-light); }
+  .task-text { font-size: 13.5px; line-height: 1.5; color: var(--text); transition: all 0.15s; }
+  .deliverable-list, .criteria-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .deliverable-item, .criteria-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 6px 10px; font-size: 13.5px; line-height: 1.5; border-radius: 6px;
+  }
+  .deliverable-item::before { content: '📦'; font-size: 13px; flex-shrink: 0; margin-top: 1px; }
+  .criteria-item::before { content: '✅'; font-size: 13px; flex-shrink: 0; margin-top: 1px; }
+  .divider { height: 1px; background: var(--grid-line); margin: 4px 0; }
+
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes modalSlide { from { opacity: 0; transform: translateY(12px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+  .modal::-webkit-scrollbar { width: 6px; }
+  .modal::-webkit-scrollbar-track { background: transparent; }
+  .modal::-webkit-scrollbar-thumb { background: var(--grid-line); border-radius: 3px; }
+</style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Cronograma de Atividades — Visão Macro</h1>
+      <p>Sistema Centralizado de Monitorização Energética · Refinaria de Sines · Fev–Jul 2026</p>
+    </div>
+
+    <div class="chart">
+      <div class="months-row">
+        <div class="month-label"></div>
+        <div class="month-label">Fev</div>
+        <div class="month-label">Mar</div>
+        <div class="month-label">Abr</div>
+        <div class="month-label">Mai</div>
+        <div class="month-label">Jun</div>
+        <div class="month-label">Jul</div>
+      </div>
+
+      <div class="sub-months-row">
+        <div class="sub-month-label"></div>
+        <div class="sub-month-label">1–15</div>
+        <div class="sub-month-label">16–28</div>
+        <div class="sub-month-label">1–15</div>
+        <div class="sub-month-label">16–31</div>
+        <div class="sub-month-label">1–15</div>
+        <div class="sub-month-label">16–30</div>
+        <div class="sub-month-label">1–15</div>
+        <div class="sub-month-label">16–31</div>
+        <div class="sub-month-label">1–15</div>
+        <div class="sub-month-label">16–30</div>
+        <div class="sub-month-label">1–15</div>
+        <div class="sub-month-label">16–31</div>
+      </div>
+
+      <div class="grid-area">
+        <div class="grid-lines">
+          <div class="grid-line month-start"></div>
+          <div class="grid-line"></div>
+          <div class="grid-line month-start"></div>
+          <div class="grid-line"></div>
+          <div class="grid-line month-start"></div>
+          <div class="grid-line"></div>
+          <div class="grid-line month-start"></div>
+          <div class="grid-line"></div>
+          <div class="grid-line month-start"></div>
+          <div class="grid-line"></div>
+          <div class="grid-line month-start"></div>
+          <div class="grid-line"></div>
+        </div>
+
+        <div class="today-marker" id="todayMarker">
+          <div class="today-label" id="todayLabel">HOJE</div>
+        </div>
+
+        <!--
+          Chart: Feb 1 → Jul 31 = 181 days. Feb 1 = day 0.
+          Positions as % of 181 days:
+
+          Phase 1: Feb 2 (day 1) → Feb 27 (day 26 end → 27)
+            left = 1/181 = 0.55%, width = 26/181 = 14.36%
+
+          Phase 2: Mar 2 (day 29) → Apr 10 (day 68 end → 69)
+            left = 29/181 = 16.02%, width = 40/181 = 22.10%
+
+          Phase 3: Apr 13 (day 71) → May 8 (day 96 end → 97)
+            left = 71/181 = 39.23%, width = 26/181 = 14.36%
+
+          Phase 4: May 11 (day 99) → Jun 19 (day 138 end → 139)
+            left = 99/181 = 54.70%, width = 40/181 = 22.10%
+
+          Phase 5: Jun 22 (day 141) → Jul 10 (day 159 end → 160)
+            left = 141/181 = 77.90%, width = 19/181 = 10.50%
+
+          Phase 6: Jul 13 (day 162) → Jul 31 (day 180 end → 181)
+            left = 162/181 = 89.50%, width = 19/181 = 10.50%
+
+          Thesis: Mar 2 (day 29) → end
+            left = 16.02%, width = 83.98%
+        -->
+
+        <!-- Phase 1 -->
+        <div class="phase-row" onclick="openModal('phase1')">
+          <div class="phase-label">
+            <div class="phase-number" style="background: var(--phase1);">1</div>
+            <div class="phase-name">Fundações</div>
+            <div class="phase-dates">02/02 – 27/02</div>
+          </div>
+          <div class="bar-area">
+            <div class="bar" style="left: 0.55%; width: 14.36%; background: var(--phase1);">
+              <span class="bar-duration">4 sem.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Phase 2 -->
+        <div class="phase-row" onclick="openModal('phase2')">
+          <div class="phase-label">
+            <div class="phase-number" style="background: var(--phase2);">2</div>
+            <div class="phase-name">Protótipo CC</div>
+            <div class="phase-dates">02/03 – 10/04</div>
+          </div>
+          <div class="bar-area">
+            <div class="bar" style="left: 16.02%; width: 22.10%; background: var(--phase2);">
+              <span class="bar-duration">6 sem.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Phase 3 -->
+        <div class="phase-row" onclick="openModal('phase3')">
+          <div class="phase-label">
+            <div class="phase-number" style="background: var(--phase3);">3</div>
+            <div class="phase-name">Validação</div>
+            <div class="phase-dates">13/04 – 08/05</div>
+          </div>
+          <div class="bar-area">
+            <div class="bar" style="left: 39.23%; width: 14.36%; background: var(--phase3);">
+              <span class="bar-duration">4 sem.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Phase 4 -->
+        <div class="phase-row" onclick="openModal('phase4')">
+          <div class="phase-label">
+            <div class="phase-number" style="background: var(--phase4);">4</div>
+            <div class="phase-name">Escalar Refinaria</div>
+            <div class="phase-dates">11/05 – 19/06</div>
+          </div>
+          <div class="bar-area">
+            <div class="bar" style="left: 54.70%; width: 22.10%; background: var(--phase4);">
+              <span class="bar-duration">6 sem.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Phase 5 -->
+        <div class="phase-row" onclick="openModal('phase5')">
+          <div class="phase-label">
+            <div class="phase-number" style="background: var(--phase5);">5</div>
+            <div class="phase-name">Troubleshooting</div>
+            <div class="phase-dates">22/06 – 10/07</div>
+          </div>
+          <div class="bar-area">
+            <div class="bar" style="left: 77.90%; width: 10.50%; background: var(--phase5);">
+              <span class="bar-duration">3 sem.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Phase 6 -->
+        <div class="phase-row" onclick="openModal('phase6')">
+          <div class="phase-label">
+            <div class="phase-number" style="background: var(--phase6);">6</div>
+            <div class="phase-name">Buffer &<br>Documentação</div>
+            <div class="phase-dates">13/07 – 31/07</div>
+          </div>
+          <div class="bar-area">
+            <div class="bar" style="left: 89.50%; width: 10.50%; background: var(--phase6);">
+              <span class="bar-duration">3 sem.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="separator"></div>
+
+        <!-- Thesis -->
+        <div class="phase-row thesis-row" style="cursor: default;">
+          <div class="phase-label">
+            <div class="phase-number" style="background: var(--thesis);">✎</div>
+            <div class="phase-name" style="font-style: italic; color: var(--thesis);">Escrita da Tese</div>
+          </div>
+          <div class="bar-area">
+            <div class="bar thesis-bar" style="left: 16.02%; width: 83.98%;">
+              <span class="bar-duration">em paralelo →</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p class="click-hint">Clicar numa fase para ver tarefas, entregáveis e critérios de saída</p>
+    </div>
+  </div>
+
+  <!-- ==================== MODALS ==================== -->
+
+  <div class="modal-overlay" id="phase1">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-phase-badge" style="background: var(--phase1);">1</div>
+        <div class="modal-title-group">
+          <div class="modal-title">Fundações</div>
+          <div class="modal-dates">02 Fev – 27 Fev 2026 · 4 semanas</div>
+        </div>
+        <button class="modal-close" onclick="closeModal('phase1')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-section">
+          <div class="modal-section-title"><span class="icon">☐</span> Tarefas</div>
+          <ul class="task-list">
+            <li class="task-item"><input type="checkbox" class="task-checkbox"><span class="task-text">Contextualização do problema: panorama energético da refinaria, vetores energéticos (fuel gas, vapor, eletricidade), estrutura organizacional do EnMS existente</span></li>
+            <li class="task-item"><input type="checkbox" class="task-checkbox"><span class="task-text">Revisão bibliográfica: consolidar os 5 pilares de investigação, cruzar referências</span></li>
+            <li class="task-item"><input type="checkbox" class="task-checkbox"><span class="task-text">Análise cláusula-a-cláusula da ISO 50001:2018 e ISO 50006: mapear requisitos normativos para especificações funcionais do sistema</span></li>
+            <li class="task-item"><input type="checkbox" class="task-checkbox"><span class="task-text">Adaptação às plataformas: obter acessos a Cortex/JupyterLab, gerar PAT para Dremio, testar conectividade Python→Dremio, explorar estrutura dos dados</span></li>
+            <li class="task-item"><input type="checkbox" class="task-checkbox"><span class="task-text">Preparação de dados: inventariar tags IP21 para a CC, identificar dados necessários, mapear ficheiros Excel, avaliar qualidade e completude</span></li>
+            <li class="task-item"><input type="checkbox" class="task-checkbox"><span class="task-text">Definir scope: quais EnPIs, quais variáveis relevantes (temperatura ambiente, throughput, tipo de crude), período de baseline</span></li>
+          </ul>
+        </div>
+        <div class="divider"></div>
+        <div class="modal-section">
+          <div class="modal-section-title"><span class="icon">📦</span> Entregáveis</div>
+          <ul class="deliverable-list">
+            <li class="deliverable-item">Documento de revisão bibliográfica consolidado</li>
+            <li class="deliverable-item">Mapeamento ISO 50001 → requisitos funcionais</li>
+            <li class="deliverable-item">Inventário de dados (tags, tabelas, ficheiros) para a CC</li>
+            <li class="deliverable-item">Ambiente de desenvolvimento funcional (JupyterLab + Dremio conectados)</li>
+            <li class="deliverable-item">Definição do scope dos EnPIs e variáveis relevantes</li>
+          </ul>
+        </div>
+        <div class="divider"></div>
+        <div class="modal-section">
+          <div class="modal-section-title"><span class="icon">✅</span> Critérios de Saída</div>
+          <ul class="criteria-list">
+            <li class="criteria-item">Consigo executar uma query Python→Dremio e obter dados reais da CC</li>
+            <li class="criteria-item">Tenho uma lista fechada dos EnPIs a calcular e das variáveis de normalização</li>
+            <li class="criteria-item">Sei exatamente que dados existem, onde estão, e o que falta</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="phase2">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-phase-badge" style="background: var(--phase2);">2</div>
+        <div class="modal-title-group">
+          <div class="modal-title">Protótipo CC</div>
+          <div class="modal-dates">02 Mar – 10 Abr 2026 · 6 semanas</div>
+        </div>
+        <button class="modal-close" onclick="closeModal('phase2')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-section">
+          <div class="modal-section-title"><span class="icon">☐</span> Tarefas</div>
+          <ul class="task-list">
+            <li class="task-item"><input type="checkbox" class="task-checkbox"><span class="task-text">Construir módulo de ingestão: scripts Python para extrair dados de IP21 (via Dremio), SAP e Excel de forma automatizada e parametrizável</span></li>
+            <li class="task-item"><input type="checkbox" class="task-checkbox"><span class="task-text">Construir módulo de tratamento: limpeza de dados (outliers, gaps, unidades), agregação temporal (horária/diária/mensal), alinhamento de séries temporais</span></li>
+            <li class="task-item"><input type="checkbox" class="task-checkbox"><span class="task-text">Implementar cálculo de EnPIs: consumo específico, eficiência energética, rácios por vetor energético, seguindo ISO 50006</span></li>
+            <li class="task-item"><input type="checkbox" class="task-checkbox"><span class="task-text">Implementar normalização: modelos de regressão com variáveis relevantes (temperatura ambiente, carga processada), estabelecer energy baselines (EnB)</span></li>
+            <li class="task-item"><input type="checkbox" class="task-checkbox"><span class="task-text">Integrar dados meteorológicos: obter e alinhar dados de temperatura ambiente com dados operacionais</span></li>
+            <li class="task-item"><input type="checkbox" class="task-checkbox"><span class="task-text">Construir V1 do dashboard Power BI: EnPIs com evolução temporal, comparação com baseline, desvios</span></li>
+            <li class="task-item"><input type="checkbox" class="task-checkbox"><span class="task-text">Implementar lógica de alertas: sinalização de desvios significativos face ao baseline</span></li>
+          </ul>
+        </div>
+        <div class="divider"></div>
+        <div class="modal-section">
+          <div class="modal-section-title"><span class="icon">📦</span> Entregáveis</div>
+          <ul class="deliverable-list">
+            <li class="deliverable-item">Motor de recolha e tratamento de dados em Python (V1) para a CC</li>
+            <li class="deliverable-item">Modelos de normalização dos EnPIs validados estatisticamente</li>
+            <li class="deliverable-item">Dashboard Power BI (V1) com EnPIs, baselines, tendências e alertas</li>
+            <li class="deliverable-item">Documentação técnica do pipeline (arquitetura, dependências, configuração)</li>
+          </ul>
+        </div>
+        <div class="divider"></div>
+        <div class="modal-section">
+          <div class="modal-section-title"><span class="icon">✅</span> Critérios de Saída</div>
+          <ul class="criteria-list">
+            <li class="criteria-item">O pipeline corre end-to-end sem intervenção manual: ingestão → tratamento → cálculo → output para Power BI</li>
+            <li class="criteria-item">Os EnPIs calculados para a CC fazem sentido quando confrontados com dados históricos/benchmarks</li>
+            <li class="criteria-item">O dashboard mostra evolução temporal, normalização e desvios face ao baseline</li>
+            <li class="criteria-item">O código está estruturado para ser parametrizável (não hardcoded para a CC)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="phase3">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-phase-badge" style="background: var(--phase3);">3</div>
+        <div class="modal-title-group">
+          <div class="modal-title">Validação</div>
+          <div class="modal-dates">13 Abr – 08 Mai 2026 · 4 semanas</div>
+        </div>
+        <button class="modal-close" onclick="closeModal('phase3')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-section">
+          <div class="modal-section-title"><span class="icon">☐</span> Tarefas</div>
+          <ul class="task-list">
+            <li class="task-item"><input type="checkbox" class="task-checkbox"><span class="task-text">Test run em condições reais: pipeline a correr durante pelo menos 2 semanas com dados da CC, monitorizar estabilidade</span></li>
+            <li class="task-item"><input type="checkbox" class="task-checkbox"><span class="task-text">Validação com stakeholders: apresentar EnPIs à equipa de monitorização e confrontar com conhecimento operacional</span></li>
+            <li class="task-item"><input type="checkbox" class="task-checkbox"><span class="task-text">Stress test dos dados: testar cenários de falha (tags em falta, dados corrompidos, gaps temporais), verificar resiliência</span></li>
+            <li class="task-item"><input type="checkbox" class="task-checkbox"><span class="task-text">Refinar modelos de normalização: ajustar se a validação revelar que o modelo não captura bem a variabilidade</span></li>
+            <li class="task-item"><input type="checkbox" class="task-checkbox"><span class="task-text">Iterar o dashboard: incorporar feedback dos utilizadores sobre layout, métricas em falta, granularidade temporal</span></li>
+            <li class="task-item"><input type="checkbox" class="task-checkbox"><span class="task-text">Documentar anomalias e decisões: cada desvio encontrado e como foi resolvido</span></li>
+          </ul>
+        </div>
+        <div class="divider"></div>
+        <div class="modal-section">
+          <div class="modal-section-title"><span class="icon">📦</span> Entregáveis</div>
+          <ul class="deliverable-list">
+            <li class="deliverable-item">Relatório de validação: o que funcionou, o que falhou, o que foi ajustado</li>
+            <li class="deliverable-item">Pipeline estável e testado para a CC</li>
+            <li class="deliverable-item">Dashboard iterado com feedback dos stakeholders</li>
+            <li class="deliverable-item">Lista de requisitos para o escalar (o que preciso de mudar para adicionar unidades)</li>
+          </ul>
+        </div>
+        <div class="divider"></div>
+        <div class="modal-section">
+          <div class="modal-section-title"><span class="icon">✅</span> Critérios de Saída</div>
+          <ul class="criteria-list">
+            <li class="criteria-item">Stakeholders confirmam que os EnPIs refletem a realidade operacional da CC</li>
+            <li class="criteria-item">O pipeline correu ≥2 semanas sem falhas ou com falhas tratadas automaticamente</li>
+            <li class="criteria-item">Tenho uma lista clara do que precisa de ser parametrizado/generalizado para outras unidades</li>
+            <li class="criteria-item">Sei o esforço estimado por unidade adicional</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="phase4">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-phase-badge" style="background: var(--phase4);">4</div>
+        <div class="modal-title-group">
+          <div class="modal-title">Escalar Refinaria</div>
+          <div class="modal-dates">11 Mai – 19 Jun 2026 · 6 semanas</div>
+        </div>
+        <button class="modal-close" onclick="closeModal('phase4')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-section">
+          <div class="modal-section-title"><span class="icon">☐</span> Tarefas</div>
+          <ul class="task-list">
+            <li class="task-item"><input type="checkbox" class="task-checkbox"><span class="task-text">Generalizar o motor Python: transformar código CC-específico em framework parametrizável — adicionar unidade nova = alterar configuração (YAML/JSON), não código</span></li>
+            <li class="task-item"><input type="checkbox" class="task-checkbox"><span class="task-text">Mapear dados para cada unidade: inventariar tags IP21, dados e Exceis para todas as unidades no scope</span></li>
+            <li class="task-item"><input type="checkbox" class="task-checkbox"><span class="task-text">Onboarding unidade a unidade: configurar, executar, validar EnPIs para cada unidade sequencialmente</span></li>
+            <li class="task-item"><input type="checkbox" class="task-checkbox"><span class="task-text">Adaptar/criar EnPIs específicos: algumas unidades podem ter vetores energéticos ou variáveis relevantes diferentes</span></li>
+            <li class="task-item"><input type="checkbox" class="task-checkbox"><span class="task-text">Generalizar dashboard: filtros por unidade e equipamento, vista agregada da refinaria, drilldown por unidade</span></li>
+            <li class="task-item"><input type="checkbox" class="task-checkbox"><span class="task-text">Testar vista consolidada: EnPIs ao nível da refinaria (agregação hierárquica) fazem sentido?</span></li>
+          </ul>
+        </div>
+        <div class="divider"></div>
+        <div class="modal-section">
+          <div class="modal-section-title"><span class="icon">📦</span> Entregáveis</div>
+          <ul class="deliverable-list">
+            <li class="deliverable-item">Framework Python parametrizável com configuração por unidade</li>
+            <li class="deliverable-item">Pipeline funcional para todas as unidades no scope</li>
+            <li class="deliverable-item">Dashboard com vista por unidade + vista consolidada da refinaria</li>
+            <li class="deliverable-item">Ficheiros de configuração por unidade (tags, EnPIs, variáveis, baselines)</li>
+          </ul>
+        </div>
+        <div class="divider"></div>
+        <div class="modal-section">
+          <div class="modal-section-title"><span class="icon">✅</span> Critérios de Saída</div>
+          <ul class="criteria-list">
+            <li class="criteria-item">Todas as unidades no scope têm EnPIs a ser calculados e visíveis no dashboard</li>
+            <li class="criteria-item">Adicionar uma unidade nova requer apenas configuração, não desenvolvimento</li>
+            <li class="criteria-item">A vista agregada da refinaria é coerente (os totais batem certo)</li>
+            <li class="criteria-item">Os tempos de execução do pipeline são aceitáveis para o volume total de dados</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="phase5">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-phase-badge" style="background: var(--phase5);">5</div>
+        <div class="modal-title-group">
+          <div class="modal-title">Troubleshooting</div>
+          <div class="modal-dates">22 Jun – 10 Jul 2026 · 3 semanas</div>
+        </div>
+        <button class="modal-close" onclick="closeModal('phase5')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-section">
+          <div class="modal-section-title"><span class="icon">☐</span> Tarefas</div>
+          <ul class="task-list">
+            <li class="task-item"><input type="checkbox" class="task-checkbox"><span class="task-text">Resolver edge cases: unidades com dados inconsistentes, tags que mudam de nome, períodos sem dados</span></li>
+            <li class="task-item"><input type="checkbox" class="task-checkbox"><span class="task-text">Otimizar performance: se o pipeline ficou lento com todas as unidades, otimizar queries, paralelizar, cache</span></li>
+            <li class="task-item"><input type="checkbox" class="task-checkbox"><span class="task-text">Tratar feedback acumulado: bugs reportados, pedidos de ajustes nos dashboards, métricas adicionais</span></li>
+            <li class="task-item"><input type="checkbox" class="task-checkbox"><span class="task-text">Testar robustez: simular cenários de falha (Dremio em baixo, dados atrasados) e implementar fallbacks</span></li>
+            <li class="task-item"><input type="checkbox" class="task-checkbox"><span class="task-text">Polir dashboards: garantir que a UX final é profissional e autónoma (utilizável sem manual)</span></li>
+          </ul>
+        </div>
+        <div class="divider"></div>
+        <div class="modal-section">
+          <div class="modal-section-title"><span class="icon">📦</span> Entregáveis</div>
+          <ul class="deliverable-list">
+            <li class="deliverable-item">Lista de issues resolvidos</li>
+            <li class="deliverable-item">Pipeline otimizado e resiliente</li>
+            <li class="deliverable-item">Dashboard versão final polida</li>
+            <li class="deliverable-item">Documentação de edge cases e soluções</li>
+          </ul>
+        </div>
+        <div class="divider"></div>
+        <div class="modal-section">
+          <div class="modal-section-title"><span class="icon">✅</span> Critérios de Saída</div>
+          <ul class="criteria-list">
+            <li class="criteria-item">Não há bugs conhecidos em aberto</li>
+            <li class="criteria-item">O sistema corre 1 semana completa sem intervenção</li>
+            <li class="criteria-item">Os dashboards são utilizáveis autonomamente pelos stakeholders</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="phase6">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-phase-badge" style="background: var(--phase6);">6</div>
+        <div class="modal-title-group">
+          <div class="modal-title">Buffer & Documentação</div>
+          <div class="modal-dates">13 Jul – 31 Jul 2026 · 3 semanas</div>
+        </div>
+        <button class="modal-close" onclick="closeModal('phase6')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-section">
+          <div class="modal-section-title"><span class="icon">☐</span> Tarefas</div>
+          <ul class="task-list">
+            <li class="task-item"><input type="checkbox" class="task-checkbox"><span class="task-text">Documentação técnica final: arquitetura do sistema, guia de manutenção, procedimentos para adicionar unidades/EnPIs</span></li>
+            <li class="task-item"><input type="checkbox" class="task-checkbox"><span class="task-text">Handover: sessão de passagem de conhecimento com a equipa que vai manter o sistema</span></li>
+            <li class="task-item"><input type="checkbox" class="task-checkbox"><span class="task-text">Preparar entregáveis finais: código documentado, ficheiros de configuração, dashboards publicados</span></li>
+            <li class="task-item"><input type="checkbox" class="task-checkbox"><span class="task-text">Guia de utilizador para os dashboards</span></li>
+            <li class="task-item"><input type="checkbox" class="task-checkbox"><span class="task-text">Buffer para imprevistos de última hora</span></li>
+          </ul>
+        </div>
+        <div class="divider"></div>
+        <div class="modal-section">
+          <div class="modal-section-title"><span class="icon">📦</span> Entregáveis</div>
+          <ul class="deliverable-list">
+            <li class="deliverable-item">Documentação técnica completa</li>
+            <li class="deliverable-item">Código-fonte documentado e organizado</li>
+            <li class="deliverable-item">Dashboards Power BI publicados e acessíveis</li>
+            <li class="deliverable-item">Guia de utilizador para os dashboards</li>
+            <li class="deliverable-item">Apresentação de handover</li>
+          </ul>
+        </div>
+        <div class="divider"></div>
+        <div class="modal-section">
+          <div class="modal-section-title"><span class="icon">✅</span> Critérios de Saída</div>
+          <ul class="criteria-list">
+            <li class="criteria-item">A equipa consegue operar e manter o sistema sem mim</li>
+            <li class="criteria-item">Todos os artefactos estão entregues e acessíveis</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function openModal(id) {
+      document.getElementById(id).classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    // Checkbox persistence via localStorage
+    (function() {
+      const STORAGE_KEY = 'cronograma-checkboxes';
+
+      function loadState() {
+        try {
+          return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+        } catch(e) { return {}; }
+      }
+
+      function saveState(state) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      }
+
+      // Assign IDs and restore state
+      const state = loadState();
+      document.querySelectorAll('.task-checkbox').forEach((cb, i) => {
+        const id = 'task-' + i;
+        cb.dataset.taskId = id;
+        if (state[id]) cb.checked = true;
+
+        cb.addEventListener('change', () => {
+          const s = loadState();
+          s[cb.dataset.taskId] = cb.checked;
+          saveState(s);
+        });
+      });
+    })();
+
+    // Dynamic today marker
+    (function() {
+      const chartStart = new Date(2026, 1, 1);   // Feb 1 2026 (chart visual start)
+      const chartEnd   = new Date(2026, 6, 31);   // Jul 31 2026
+      const projStart  = new Date(2026, 1, 2);    // Feb 2 2026 (project start)
+      const projEnd    = new Date(2026, 6, 31);   // Jul 31 2026
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const chartDays = Math.round((chartEnd - chartStart) / 864e5); // 181
+      const daysSinceChart = (today - chartStart) / 864e5;
+      const pct = Math.max(0, Math.min(1, daysSinceChart / chartDays));
+
+      const projDays = Math.round((projEnd - projStart) / 864e5) + 1; // inclusive: Feb 2 = day 1, Jul 31 = day 180
+      const daysSinceProj = Math.max(0, Math.round((today - projStart) / 864e5) + 1);
+      const clamped = Math.min(daysSinceProj, projDays);
+
+      const marker = document.getElementById('todayMarker');
+      const label  = document.getElementById('todayLabel');
+
+      marker.style.left = `calc(250px + (100% - 250px) * ${pct})`;
+      label.innerHTML = `HOJE<br>${clamped}/${projDays}`;
+    })();
+
+    // Close on overlay click
+    document.querySelectorAll('.modal-overlay').forEach(o => {
+      o.addEventListener('click', e => {
+        if (e.target === o) { o.classList.remove('active'); document.body.style.overflow = ''; }
+      });
+    });
+    // Close on Escape
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        document.querySelectorAll('.modal-overlay.active').forEach(o => o.classList.remove('active'));
+        document.body.style.overflow = '';
+      }
+    });
+  </script>
+</body>
+</html>
