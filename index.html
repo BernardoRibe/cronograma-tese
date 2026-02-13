@@ -253,7 +253,7 @@
 <body>
   <div class="container">
     <div class="header">
-      <h1>Cronograma de Atividades</h1>
+      <h1>Cronograma de Atividades — Visão Macro</h1>
       <p>Sistema Centralizado de Monitorização Energética · Refinaria de Sines · Fev–Jul 2026</p>
     </div>
 
@@ -317,8 +317,8 @@
           Phase 3: Apr 13 (day 71) → May 8 (day 96 end → 97)
             left = 71/181 = 39.23%, width = 26/181 = 14.36%
 
-          Phase 4: May 11 (day 99) → Jun 19 (day 138 end → 139)
-            left = 99/181 = 54.70%, width = 40/181 = 22.10%
+          Phase 4: Apr 13 (day 71) → Jun 19 (day 138 end → 139) [parallel with Phase 3]
+            left = 71/181 = 39.23%, width = 68/181 = 37.57%
 
           Phase 5: Jun 22 (day 141) → Jul 10 (day 159 end → 160)
             left = 141/181 = 77.90%, width = 19/181 = 10.50%
@@ -372,16 +372,16 @@
           </div>
         </div>
 
-        <!-- Phase 4 -->
+        <!-- Phase 4 (parallel with Phase 3) -->
         <div class="phase-row" onclick="openModal('phase4')">
           <div class="phase-label">
             <div class="phase-number" style="background: var(--phase4);">4</div>
             <div class="phase-name">Escalar Refinaria</div>
-            <div class="phase-dates">11/05 – 19/06</div>
+            <div class="phase-dates">13/04 – 19/06</div>
           </div>
           <div class="bar-area">
-            <div class="bar" style="left: 54.70%; width: 22.10%; background: var(--phase4);">
-              <span class="bar-duration">6 sem.</span>
+            <div class="bar" style="left: 39.23%; width: 37.57%; background: var(--phase4);">
+              <span class="bar-duration">10 sem.</span>
             </div>
           </div>
         </div>
@@ -581,7 +581,7 @@
         <div class="modal-phase-badge" style="background: var(--phase4);">4</div>
         <div class="modal-title-group">
           <div class="modal-title">Escalar Refinaria</div>
-          <div class="modal-dates">11 Mai – 19 Jun 2026 · 6 semanas</div>
+          <div class="modal-dates">13 Abr – 19 Jun 2026 · 10 semanas (em paralelo com Validação)</div>
         </div>
         <button class="modal-close" onclick="closeModal('phase4')">✕</button>
       </div>
